@@ -1,17 +1,56 @@
 package org.example;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-public class Main {
-    static void main() {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        IO.println(String.format("Hello and welcome!"));
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.HashMap;
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            IO.println("i = " + i);
+public class Main {
+    public static void main(String[] args) throws IOException {
+        Path firstPath = Path.of("src/main/resources/discount_day.txt");
+        Path secondPath = Path.of("src/main/resources/discount_day_without_ext");
+
+        OrderSourceFactory factory = new OrderSourceFactory();
+
+        OrderSource source = factory.create(firstPath);
+        List<Order> orders = source.readOrders(firstPath);
+
+        OrderSource secondSource = factory.create(secondPath);
+        orders.addAll(secondSource.readOrders(secondPath));
+
+        orders.sort(Comparator.comparing(Order::getDate));
+
+        Map<String, Double> totals = new HashMap<>();
+
+        double pricePerKg = 100.0;
+        double discount = 0.50;
+
+        for(Order order : orders) {
+            double cost = order.getKilograms() * pricePerKg * (1 - discount);
+
+            totals.merge(
+                    order.getCompany(),
+                    cost,
+                    (oldCost, newCost) -> oldCost + newCost
+            );
+
+            discount = Math.max(0.0, discount - 0.05);
         }
+
+        for (Map.Entry<String, Double> entry : totals.entrySet()) {
+            System.out.printf("%s : %.2f%n", entry.getKey(), entry.getValue());
+        }
+
+        System.out.println("Количество заказов: " + orders.size());
+
+
+
+
+
+
     }
+
 }
+
