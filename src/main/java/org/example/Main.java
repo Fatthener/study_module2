@@ -1,11 +1,16 @@
 package org.example;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.HashMap;
+import java.math.RoundingMode;
+import java.util.ArrayList;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -22,28 +27,48 @@ public class Main {
 
         orders.sort(Comparator.comparing(Order::getDate));
 
-        Map<String, Double> totals = new HashMap<>();
+        Map<String, BigDecimal> totals = new HashMap<>();
 
-        double pricePerKg = 100.0;
-        double discount = 0.50;
+        final BigDecimal pricePerKg = new BigDecimal("100.00");
+        BigDecimal discount = new BigDecimal("0.50");
+        final BigDecimal discountStep = new BigDecimal("0.05");
 
         for(Order order : orders) {
-            double cost = order.getKilograms() * pricePerKg * (1 - discount);
-
+            BigDecimal cost = BigDecimal.valueOf(order.getKilograms())
+                    .multiply(pricePerKg)
+                    .multiply(BigDecimal.ONE.subtract(discount));
             totals.merge(
                     order.getCompany(),
                     cost,
-                    (oldCost, newCost) -> oldCost + newCost
-            );
+                    BigDecimal::add);
 
-            discount = Math.max(0.0, discount - 0.05);
+            discount = discount.subtract(discountStep);
+
+            if (discount.compareTo(BigDecimal.ZERO) < 0) {
+                discount = BigDecimal.ZERO;
+            }
         }
 
-        for (Map.Entry<String, Double> entry : totals.entrySet()) {
-            System.out.printf("%s : %.2f%n", entry.getKey(), entry.getValue());
+        for (Map.Entry<String, BigDecimal> entry : totals.entrySet()) {
+            BigDecimal total = entry.getValue()
+                    .setScale(2, RoundingMode.HALF_UP);
+
+                    System.out.println(entry.getKey() + " : " + total.toPlainString());
         }
 
-        System.out.println("Количество заказов: " + orders.size());
+        List<String> outOrder = new ArrayList<>();
+        for (Map.Entry<String, BigDecimal> entry : totals.entrySet()) {
+            BigDecimal total = entry.getValue()
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            String line = entry.getKey() + " - " + total.toPlainString();
+            outOrder.add(line);
+        }
+
+        Path outputPath = Path.of("src/main/resources/output.txt");
+        Files.write(outputPath, outOrder);
+
+
 
 
 
